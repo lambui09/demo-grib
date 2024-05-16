@@ -10,7 +10,7 @@ import Combine
 struct InfiniteGrid: View {
 	
 	
-	@StateObject var viewModel: InfiniteGridVM = InfiniteGridVM(baseScale: 2, smallestAllowedLineGap: 20, largestAllowedLineGap: 450)
+	@StateObject var viewModel: InfiniteGridVM = InfiniteGridVM(baseScale: 3, smallestAllowedLineGap: 60, largestAllowedLineGap: 450)
 	
 	@State private var previousFrameTranslation: CGSize = .zero
 	/// The net scale during a magnify gesture.
@@ -43,23 +43,41 @@ struct InfiniteGrid: View {
 	/// Gesture to scale the grid when using a magnify gesture
 	private var gridScale: some Gesture {
 		
+		if #available(iOS 17.0, *) {
+			return MagnifyGesture()
+				.onChanged { update in
+					/// Determine how much larger this frame is
+					let currentFrameScale: CGFloat = update.magnification / previousFrameScale
+					// Update the scale
+					viewModel.updateScale(newScale: currentFrameScale, sInteractionPoint: update.startLocation)
+					// Save the current scale
+					previousFrameScale = update.magnification
+				}
+				.onEnded { _ in
+					// Reset the stored previous frame scale
+					previousFrameScale = 1
+				}
+		} else {
+			return MagnificationGesture()
+				.onChanged { update in
+					/// Determine how much larger this frame is
+					let currentFrameScale: CGFloat = update.magnitude / previousFrameScale
+					// Update the scale
+					
+					//get interaction point in gesture
+					
+					viewModel.updateScale(newScale: currentFrameScale, sInteractionPoint: .init(x: viewModel.sSize.width/2, y: viewModel.sSize.height/2))
+					// Save the current scale
+					previousFrameScale = update.magnitude
+				}
+				.onEnded { _ in
+					
+					previousFrameScale = 1
+				}
+		}
 		
-		MagnificationGesture()
-			.onChanged { update in
-				/// Determine how much larger this frame is
-				let currentFrameScale: CGFloat = update.magnitude / previousFrameScale
-				// Update the scale
-				
-				//get interaction point in gesture
-				
-				viewModel.updateScale(newScale: currentFrameScale, sInteractionPoint: .init(x: viewModel.sSize.width/2, y: viewModel.sSize.height/2))
-				// Save the current scale
-				previousFrameScale = update.magnitude
-			}
-			.onEnded { _ in
-				
-				previousFrameScale = 1
-			}
+		
+		
 	}
 	
     var body: some View {
@@ -75,9 +93,7 @@ struct InfiniteGrid: View {
 			}
 			.animation(.linear, value: viewModel.gScale)
 			.gesture(gridDrag)
-			
 		}
-		
 		.gesture(gridScale)
 		.ignoresSafeArea()
     }

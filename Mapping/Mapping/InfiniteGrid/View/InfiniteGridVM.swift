@@ -33,34 +33,31 @@ class InfiniteGridVM: ObservableObject {
 	}
 	
 	public func updateScale(newScale inputScaleMultiplier: CGFloat, sInteractionPoint: CGPoint) {
-			if !inputScaleMultiplier.isFinite {
-				return
-			}
-			var scaleMultiplier = inputScaleMultiplier
-			if gScale * scaleMultiplier * sLineSpacing < smallestAllowedLineGap {
-				scaleMultiplier = smallestAllowedLineGap / (gScale * sLineSpacing)
-			}
-			else if gScale * scaleMultiplier * sLineSpacing > largestAllowedLineGap {
-				scaleMultiplier = largestAllowedLineGap / (gScale * sLineSpacing)
-			}
+		guard inputScaleMultiplier.isFinite else { return }
 
-			let oldInteractionProportion = sInteractionPoint / sSize
-			if !(oldInteractionProportion.x.isFinite && oldInteractionProportion.y.isFinite) {
-				return
-			}
-			let oldDisplayedGridPoints = sSize / gScale
-			let newDisplayedGridPoints = sSize / (gScale * scaleMultiplier)
-			let deltaDisplayedGridPoints = newDisplayedGridPoints - oldDisplayedGridPoints
-			let displacedTopLeftGridPoints = deltaDisplayedGridPoints * oldInteractionProportion
+		var scaleMultiplier = inputScaleMultiplier
+		if gScale * scaleMultiplier * sLineSpacing < smallestAllowedLineGap {
+			scaleMultiplier = smallestAllowedLineGap / (gScale * sLineSpacing)
+		} else if gScale * scaleMultiplier * sLineSpacing > largestAllowedLineGap {
+			scaleMultiplier = largestAllowedLineGap / (gScale * sLineSpacing)
+		}
+
+		let oldInteractionProportion = sInteractionPoint / sSize
+		guard oldInteractionProportion.x.isFinite && oldInteractionProportion.y.isFinite else { return }
+
+		let oldDisplayedGridPoints = sSize / gScale
+		let newDisplayedGridPoints = sSize / (gScale * scaleMultiplier)
+		let deltaDisplayedGridPoints = newDisplayedGridPoints - oldDisplayedGridPoints
+		let displacedTopLeftGridPoints = deltaDisplayedGridPoints * oldInteractionProportion
+
+		withAnimation(.easeIn(duration: 0.8)) {
 			sTranslation += displacedTopLeftGridPoints
 			gScale *= scaleMultiplier
 			self.sInteractionPoint = sInteractionPoint
-			
-			// Thực hiện animation cho scaleSpacing
-			withAnimation {
-				self.scaleSpacing = calculateScaleSpacing(for: gScale)
-			}
+			self.scaleSpacing = calculateScaleSpacing(for: gScale)
 		}
+	}
+
 	
 	public func setScreenSize(_ screenSize: CGSize) {
 		// Ensure valid dimensions
@@ -74,28 +71,14 @@ class InfiniteGridVM: ObservableObject {
 	}
 	
 	private func calculateScaleSpacing(for gScale: CGFloat) -> CGFloat {
-		print(gScale)
-		switch gScale {
-		case 4.0..<5.0:
-			return 0.2
-		case 3.0..<4.0:
-			return 0.4
-		case 2.0..<3.0:
-			return 0.6
-		case 1.5..<2.0:
-			return 0.8
-		case 1.0..<1.5:
-			return 1.0
-		case 0.8..<1.0:
-			return 1.5
-		case 0.6..<0.8:
-			return 2.0
-		case 0.4..<0.6:
-			return 2.5
-		case 0.2..<0.4:
-			return 3.0
-		default:
-			return 1.0
+		let adjustedLineSpacing = sLineSpacing * gScale * scaleSpacing
+
+		if adjustedLineSpacing >= 256 {
+			return (128 / (sLineSpacing * gScale))
+		} else if adjustedLineSpacing <= 128 {
+			return (256 / (sLineSpacing * gScale))
+		} else {
+			return scaleSpacing
 		}
 	}
 	
@@ -109,6 +92,7 @@ class InfiniteGridVM: ObservableObject {
 			}
 			
 			let adjustedLineSpacing = sLineSpacing * gScale * scaleSpacing
+			
 			
 			let centerX = sSize.width / 2 + sTranslation.x
 			let centerY = sSize.height / 2 + sTranslation.y
